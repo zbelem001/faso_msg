@@ -1,0 +1,85 @@
+server_name: ${SERVER_NAME}
+public_baseurl: ${PUBLIC_SCHEME}://matrix.${DOMAIN}/
+pid_file: /data/homeserver.pid
+signing_key_path: /data/signing.key
+web_client_location: ${PUBLIC_SCHEME}://chat.${DOMAIN}/
+
+listeners:
+  - port: 8008
+    tls: false
+    type: http
+    x_forwarded: true
+    resources:
+      - names: [client, federation]
+        compress: false
+
+database:
+  name: psycopg2
+  args:
+    user: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+    database: ${POSTGRES_DB}
+    host: synapse-db
+    port: 5432
+    cp_min: 5
+    cp_max: 10
+
+media_store_path: /data/media_store
+uploads_path: /data/uploads
+registration_shared_secret: ${SYNAPSE_REGISTRATION_SHARED_SECRET}
+
+report_stats: false
+enable_registration: false
+allow_public_rooms_without_auth: false
+allow_public_rooms_over_federation: false
+trusted_key_servers: []
+send_federation: false
+federation_domain_whitelist: []
+
+presence:
+  enabled: false
+ip_range_whitelist: []
+ip_range_blacklist: []
+user_directory:
+  enabled: false
+
+retention:
+  enabled: true
+  default_policy:
+    min_lifetime: 1d
+    max_lifetime: 30d
+
+password_config:
+  enabled: ${SYNAPSE_PASSWORD_LOGIN}
+
+rc_message:
+  per_second: 0.2
+  burst_count: 10
+
+push:
+  include_content: false
+
+encryption_enabled_by_default_for_room_type: all
+
+oidc_providers:
+  - idp_id: keycloak
+    idp_name: Compte agent de l'État
+    discover: false
+    issuer: ${PUBLIC_SCHEME}://auth.${DOMAIN}/realms/administration
+    client_id: synapse
+    client_secret: ${OIDC_SYNAPSE_SECRET}
+    scopes: ["openid", "profile", "email", "groups"]
+    authorization_endpoint: http://keycloak:8080/realms/administration/protocol/openid-connect/auth
+    token_endpoint: http://keycloak:8080/realms/administration/protocol/openid-connect/token
+    userinfo_endpoint: http://keycloak:8080/realms/administration/protocol/openid-connect/userinfo
+    jwks_uri: http://keycloak:8080/realms/administration/protocol/openid-connect/certs
+    user_profile_method: userinfo_endpoint
+    attribute_requirements:
+      - attribute: groups
+        value: agents
+    backchannel_logout_enabled: true
+    allow_existing_users: false
+    user_mapping_provider:
+      config:
+        localpart_template: "{{ user.preferred_username|lower }}"
+        display_name_template: "{{ user.name|default(user.preferred_username) }}"

@@ -1,0 +1,59 @@
+services:
+  synapse-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-synapse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-synapse}
+      POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+    volumes:
+      - synapse_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  synapse:
+    image: matrixdotorg/synapse:v1.164.1
+    restart: unless-stopped
+    depends_on:
+      synapse-db:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+      PUBLIC_SCHEME: ${PUBLIC_SCHEME:-http}
+      SERVER_NAME: ${SERVER_NAME:-messagerie.gov.bf}
+      SYNAPSE_PASSWORD_LOGIN: ${SYNAPSE_PASSWORD_LOGIN:-false}
+      OIDC_SYNAPSE_SECRET: ${OIDC_SYNAPSE_SECRET:-change-me-oidc}
+      SYNAPSE_REGISTRATION_SHARED_SECRET: ${SYNAPSE_REGISTRATION_SHARED_SECRET:-change-me-registration}
+      POSTGRES_USER: ${POSTGRES_USER:-synapse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-synapse}
+    volumes:
+      - synapse_data:/data
+      - ./synapse/entrypoint.sh:/usr/local/bin/part-a-entrypoint.sh:ro
+      - ./synapse/homeserver.yaml.template:/templates/homeserver.yaml.template:ro
+    entrypoint: ["/bin/sh", "/usr/local/bin/part-a-entrypoint.sh"]
+    expose:
+      - "8008"
+
+  element:
+    image: vectorim/element-web:v1.11.95
+    restart: unless-stopped
+    depends_on:
+      - synapse
+    volumes:
+      - ./element/config.json:/app/config.json:ro
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  synapse_db:
+  synapse_data:

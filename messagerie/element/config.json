@@ -1,0 +1,21 @@
+{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "http://matrix.localhost",
+      "server_name": "messagerie.gov.bf"
+    }
+  },
+  "disable_custom_urls": true,
+  "disable_guests": true,
+  "disable_login_language_selector": false,
+  "brand": "Messagerie souveraine",
+  "integrations_ui_url": "",
+  "integrations_rest_url": "",
+  "integrations_widgets_urls": [],
+  "room_directory": {
+    "servers": []
+  },
+  "voip": {
+    "turn_servers": []
+  }
+}

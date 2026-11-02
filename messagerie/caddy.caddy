@@ -1,0 +1,19 @@
+{$PUBLIC_SCHEME}://chat.{$DOMAIN} {
+	header {
+		-X-Powered-By
+		-Server
+	}
+	reverse_proxy element:80
+}
+
+{$PUBLIC_SCHEME}://matrix.{$DOMAIN} {
+	header {
+		-X-Powered-By
+		-Server
+	}
+
+	@admin_api path /_synapse/admin/*
+	respond @admin_api 403
+
+	reverse_proxy synapse:8008
+}

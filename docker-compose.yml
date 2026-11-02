@@ -1,0 +1,24 @@
+name: messagerie-souveraine
+
+services:
+  caddy:
+    image: caddy:2.8
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN is required}
+      PUBLIC_SCHEME: ${PUBLIC_SCHEME:?PUBLIC_SCHEME is required}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./messagerie/caddy.caddy:/etc/caddy/sites/messagerie.caddy:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+include:
+  - path: messagerie/compose.yml
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- Page d'erreur d'oauth2-proxy : remplace celle par défaut, qui charge sa feuille de style
+     depuis un service extérieur (cdnjs). Ici, tout est servi par la console. -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.StatusCode}} · Console d'administration</title>
+<link rel="stylesheet" href="/static/console.css">
+</head>
+<body>
+<div class="drapeau" aria-hidden="true"><span></span><span></span></div>
+<main class="page-erreur">
+  <div class="carte">
+    <p class="surtitre">Messagerie de l'Administration</p>
+    {{if eq .StatusCode 403}}
+    <h1>Accès réservé</h1>
+    <p>La console est réservée aux administrateurs de la messagerie (groupe <code>admin-messagerie</code>).
+       Votre compte n'en fait pas partie : la tentative a été refusée.</p>
+    {{else}}
+    <h1>Erreur {{.StatusCode}}</h1>
+    <p>{{.Title}}</p>
+    <p><a href="/">Revenir à la console</a></p>
+    {{end}}
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,405 @@
+{
+  "realm": "administration",
+  "displayName": "Messagerie de l'Administration",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "loginWithEmailAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "failureFactor": 5,
+  "waitIncrementSeconds": 60,
+  "maxFailureWaitSeconds": 900,
+  "permanentLockout": false,
+  "passwordPolicy": "length(12) and notUsername(undefined)",
+  "internationalizationEnabled": true,
+  "supportedLocales": [
+    "fr",
+    "en"
+  ],
+  "defaultLocale": "fr",
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyDigits": 6,
+  "otpPolicyPeriod": 30,
+  "otpPolicyLookAheadWindow": 1,
+  "browserFlow": "navigateur-totp",
+  "authenticationFlows": [
+    {
+      "alias": "navigateur-totp",
+      "description": "Mot de passe puis code TOTP, obligatoires pour tous les comptes",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-cookie",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "userSetupAllowed": false
+        },
+        {
+          "flowAlias": "navigateur-totp formulaires",
+          "authenticatorFlow": true,
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "navigateur-totp formulaires",
+      "description": "Le code TOTP est REQUIS : un compte sans TOTP doit en configurer un avant d'entrer",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-username-password-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false
+        }
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "name": "agents"
+    },
+    {
+      "name": "admin-messagerie"
+    },
+    {
+      "name": "archiviste"
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "synapse",
+      "name": "Messagerie (Synapse)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${OIDC_SYNAPSE_SECRET}",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": false,
+      "redirectUris": [
+        "${PUBLIC_SCHEME}://matrix.${DOMAIN}/_synapse/client/oidc/callback"
+      ],
+      "webOrigins": [],
+      "attributes": {
+        "backchannel.logout.url": "http://synapse:8008/_synapse/client/oidc/backchannel_logout",
+        "backchannel.logout.session.required": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "groupes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "groups",
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "oauth2-proxy",
+      "name": "Console d'administration (oauth2-proxy)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${OAUTH2_PROXY_CLIENT_SECRET}",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": false,
+      "redirectUris": [
+        "${PUBLIC_SCHEME}://admin.${DOMAIN}/oauth2/callback"
+      ],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${PUBLIC_SCHEME}://admin.${DOMAIN}/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "groupes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "groups",
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience-console",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "oauth2-proxy",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "console-admin",
+      "name": "Console d'administration (compte de service)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${CONSOLE_ADMIN_CLIENT_SECRET}",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true
+    }
+  ],
+  "users": [
+    {
+      "username": "awa.demo",
+      "enabled": true,
+      "email": "awa.demo@messagerie.test",
+      "emailVerified": true,
+      "firstName": "Awa",
+      "lastName": "Sawadogo",
+      "attributes": {
+        "ministere": [
+          "Ministère de la Santé"
+        ],
+        "fonction": [
+          "Directrice des ressources humaines"
+        ]
+      },
+      "groups": [
+        "/agents"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Agent-Demo-2026",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "Application TOTP (démo)",
+          "secretData": "{\"value\": \"Ufo1LVlFo0sCGF8F57sk\"}",
+          "credentialData": "{\"subType\": \"totp\", \"digits\": 6, \"counter\": 0, \"period\": 30, \"algorithm\": \"HmacSHA1\"}"
+        }
+      ]
+    },
+    {
+      "username": "issa.demo",
+      "enabled": true,
+      "email": "issa.demo@messagerie.test",
+      "emailVerified": true,
+      "firstName": "Issa",
+      "lastName": "Traoré",
+      "attributes": {
+        "ministere": [
+          "Ministère de l'Économie et des Finances"
+        ],
+        "fonction": [
+          "Chef du service du budget"
+        ]
+      },
+      "groups": [
+        "/agents"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Agent-Demo-2026",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "Application TOTP (démo)",
+          "secretData": "{\"value\": \"Q3dsH7mugZz0gQyLmLdc\"}",
+          "credentialData": "{\"subType\": \"totp\", \"digits\": 6, \"counter\": 0, \"period\": 30, \"algorithm\": \"HmacSHA1\"}"
+        }
+      ]
+    },
+    {
+      "username": "fatim.demo",
+      "enabled": true,
+      "email": "fatim.demo@messagerie.test",
+      "emailVerified": true,
+      "firstName": "Fatimata",
+      "lastName": "Ouédraogo",
+      "attributes": {
+        "ministere": [
+          "Ministère de l'Éducation nationale"
+        ],
+        "fonction": [
+          "Conseillère technique"
+        ]
+      },
+      "groups": [
+        "/agents"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Agent-Demo-2026",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "Application TOTP (démo)",
+          "secretData": "{\"value\": \"TM9YfZr6nLylc7Cfvfzk\"}",
+          "credentialData": "{\"subType\": \"totp\", \"digits\": 6, \"counter\": 0, \"period\": 30, \"algorithm\": \"HmacSHA1\"}"
+        }
+      ]
+    },
+    {
+      "username": "admin.demo",
+      "enabled": true,
+      "email": "admin.demo@messagerie.test",
+      "emailVerified": true,
+      "firstName": "Salif",
+      "lastName": "Zongo",
+      "attributes": {
+        "ministere": [
+          "Ministère de la Transition digitale"
+        ],
+        "fonction": [
+          "Administrateur de la messagerie"
+        ]
+      },
+      "groups": [
+        "/agents",
+        "/admin-messagerie"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Agent-Demo-2026",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "Application TOTP (démo)",
+          "secretData": "{\"value\": \"Uvl1pfaB5j814R5i8tN9\"}",
+          "credentialData": "{\"subType\": \"totp\", \"digits\": 6, \"counter\": 0, \"period\": 30, \"algorithm\": \"HmacSHA1\"}"
+        }
+      ]
+    },
+    {
+      "username": "horsgroupe.demo",
+      "enabled": true,
+      "email": "horsgroupe.demo@messagerie.test",
+      "emailVerified": true,
+      "firstName": "Visiteur",
+      "lastName": "Hors groupe",
+      "attributes": {
+        "ministere": [
+          "Aucun"
+        ],
+        "fonction": [
+          "Compte existant mais non enrôlé comme agent (épreuve Intrus)"
+        ]
+      },
+      "groups": [],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Agent-Demo-2026",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "Application TOTP (démo)",
+          "secretData": "{\"value\": \"4KRUuNogoU19VBJdE2rp\"}",
+          "credentialData": "{\"subType\": \"totp\", \"digits\": 6, \"counter\": 0, \"period\": 30, \"algorithm\": \"HmacSHA1\"}"
+        }
+      ]
+    },
+    {
+      "username": "jury.demo",
+      "enabled": true,
+      "email": "jury.demo@messagerie.test",
+      "emailVerified": true,
+      "firstName": "Membre",
+      "lastName": "du Jury",
+      "attributes": {
+        "ministere": [
+          "Jury du Hackathon 226"
+        ],
+        "fonction": [
+          "Évaluateur"
+        ]
+      },
+      "groups": [
+        "/agents"
+      ],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Agent-Demo-2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "service-account-console-admin",
+      "enabled": true,
+      "serviceAccountClientId": "console-admin",
+      "clientRoles": {
+        "realm-management": [
+          "view-users",
+          "manage-users"
+        ]
+      }
+    }
+  ],
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "subComponents": {},
+        "config": {
+          "kc.user.profile.config": [
+            "{\"attributes\": [{\"name\": \"username\", \"displayName\": \"Identifiant\", \"validations\": {\"length\": {\"min\": 3, \"max\": 255}, \"username-prohibited-characters\": {}, \"up-username-not-idn-homograph\": {}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}, {\"name\": \"email\", \"displayName\": \"Courriel\", \"validations\": {\"email\": {}, \"length\": {\"max\": 255}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}, {\"name\": \"firstName\", \"displayName\": \"Prénom\", \"validations\": {\"length\": {\"max\": 255}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false, \"required\": {\"roles\": [\"admin\", \"user\"]}}, {\"name\": \"lastName\", \"displayName\": \"Nom\", \"validations\": {\"length\": {\"max\": 255}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false, \"required\": {\"roles\": [\"admin\", \"user\"]}}, {\"name\": \"ministere\", \"displayName\": \"Ministère\", \"validations\": {\"length\": {\"max\": 255}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}, {\"name\": \"fonction\", \"displayName\": \"Fonction\", \"validations\": {\"length\": {\"max\": 255}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}], \"groups\": [{\"name\": \"user-metadata\", \"displayHeader\": \"User metadata\", \"displayDescription\": \"Attributes, which refer to user metadata\"}]}"
+          ]
+        }
+      }
+    ]
+  }
+}

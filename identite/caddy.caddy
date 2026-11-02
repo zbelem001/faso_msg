@@ -1,0 +1,25 @@
+# Partie B : identité (Keycloak) et console d'administration (toujours derrière oauth2-proxy).
+
+{$PUBLIC_SCHEME}://auth.{$DOMAIN} {
+	header {
+		-X-Powered-By
+		-Server
+	}
+	reverse_proxy keycloak:8080
+}
+
+{$PUBLIC_SCHEME}://admin.{$DOMAIN} {
+	header {
+		-X-Powered-By
+		-Server
+		# Aucune ressource extérieure, aucun code en ligne, pas d'affichage dans un cadre
+		Content-Security-Policy "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+	}
+	reverse_proxy oauth2-proxy:4180 {
+		# Seul oauth2-proxy transmet le jeton de l'administrateur à la console : un en-tête
+		# forgé par le navigateur est supprimé avant de lui parvenir.
+		header_up -X-Forwarded-Access-Token
+	}
+}

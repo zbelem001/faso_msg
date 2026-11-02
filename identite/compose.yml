@@ -1,0 +1,129 @@
+# Partie B : identité et gouvernance (Keycloak, console d'administration, oauth2-proxy).
+# Inclus par le docker-compose.yml racine ; les variables viennent du .env racine.
+# Aucun service n'expose de port : tout passe par Caddy (auth.* et admin.*).
+
+services:
+  keycloak-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?KEYCLOAK_DB_PASSWORD is required}
+      POSTGRES_DB: keycloak
+    volumes:
+      - keycloak_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    restart: unless-stopped
+    command: ["start", "--import-realm"]
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?KEYCLOAK_DB_PASSWORD is required}
+      # Contrat C1 : URL publique écrite dans les jetons (iss). Les autres conteneurs appellent
+      # Keycloak en interne (keycloak:8080) et reçoivent pourtant des jetons à cet émetteur public.
+      KC_HOSTNAME: ${PUBLIC_SCHEME:?PUBLIC_SCHEME is required}://auth.${DOMAIN:?DOMAIN is required}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?KEYCLOAK_ADMIN_PASSWORD is required}
+      # Injectés dans le realm importé (keycloak/import/realm-administration.json)
+      PUBLIC_SCHEME: ${PUBLIC_SCHEME}
+      DOMAIN: ${DOMAIN}
+      OIDC_SYNAPSE_SECRET: ${OIDC_SYNAPSE_SECRET:?OIDC_SYNAPSE_SECRET is required}
+      OAUTH2_PROXY_CLIENT_SECRET: ${OAUTH2_PROXY_CLIENT_SECRET:?OAUTH2_PROXY_CLIENT_SECRET is required}
+      CONSOLE_ADMIN_CLIENT_SECRET: ${CONSOLE_ADMIN_CLIENT_SECRET:?CONSOLE_ADMIN_CLIENT_SECRET is required}
+    volumes:
+      - ./keycloak/import:/opt/keycloak/data/import:ro
+    healthcheck:
+      # Prêt seulement quand le realm importé répond (et pas seulement le serveur)
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /realms/administration/.well-known/openid-configuration HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q ' 200 '"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  # Console : jamais exposée directement, uniquement derrière oauth2-proxy
+  console-admin:
+    build: ./console-admin
+    restart: unless-stopped
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: administration
+      KEYCLOAK_ISSUER: ${PUBLIC_SCHEME}://auth.${DOMAIN}/realms/administration
+      KEYCLOAK_CLIENT_ID: console-admin
+      KEYCLOAK_CLIENT_SECRET: ${CONSOLE_ADMIN_CLIENT_SECRET}
+      CONSOLE_ORIGIN: ${PUBLIC_SCHEME}://admin.${DOMAIN}
+      OIDC_AUDIENCE: oauth2-proxy
+      ADMIN_GROUP: admin-messagerie
+      AGENTS_GROUP: agents
+      # Contrat C2 : API d'administration de Synapse, par le réseau interne uniquement
+      SYNAPSE_URL: http://synapse:8008
+      SYNAPSE_SERVER_NAME: ${SERVER_NAME:?SERVER_NAME is required}
+      SYNAPSE_REGISTRATION_SHARED_SECRET: ${SYNAPSE_REGISTRATION_SHARED_SECRET:?SYNAPSE_REGISTRATION_SHARED_SECRET is required}
+      SYNAPSE_ADMIN_TOKEN_FILE: /data/synapse_admin_token
+      AUDIT_DB: /data/audit.db
+    volumes:
+      - console_data:/data
+
+  # Garde-barrière de la console : connexion Keycloak (avec TOTP) et groupe admin-messagerie exigés ;
+  # transmet le jeton d'accès à la console, qui en vérifie elle-même la signature.
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.5
+    restart: unless-stopped
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      console-admin:
+        condition: service_started
+    environment:
+      OAUTH2_PROXY_PROVIDER: keycloak-oidc
+      OAUTH2_PROXY_CLIENT_ID: oauth2-proxy
+      OAUTH2_PROXY_CLIENT_SECRET: ${OAUTH2_PROXY_CLIENT_SECRET}
+      OAUTH2_PROXY_OIDC_ISSUER_URL: ${PUBLIC_SCHEME}://auth.${DOMAIN}/realms/administration
+      # Comme pour Synapse : le navigateur passe par l'URL publique, oauth2-proxy par le réseau interne.
+      OAUTH2_PROXY_SKIP_OIDC_DISCOVERY: "true"
+      OAUTH2_PROXY_LOGIN_URL: ${PUBLIC_SCHEME}://auth.${DOMAIN}/realms/administration/protocol/openid-connect/auth
+      OAUTH2_PROXY_REDEEM_URL: http://keycloak:8080/realms/administration/protocol/openid-connect/token
+      OAUTH2_PROXY_OIDC_JWKS_URL: http://keycloak:8080/realms/administration/protocol/openid-connect/certs
+      OAUTH2_PROXY_REDIRECT_URL: ${PUBLIC_SCHEME}://admin.${DOMAIN}/oauth2/callback
+      OAUTH2_PROXY_CODE_CHALLENGE_METHOD: S256
+      OAUTH2_PROXY_SCOPE: openid email profile   # les groupes viennent du mappeur du client Keycloak
+      OAUTH2_PROXY_ALLOWED_GROUPS: admin-messagerie
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      OAUTH2_PROXY_UPSTREAMS: http://console-admin:8000
+      OAUTH2_PROXY_PASS_ACCESS_TOKEN: "true"
+      OAUTH2_PROXY_SKIP_AUTH_ROUTES: GET=^/static/   # feuille de style et script, aussi pour la page d'erreur
+      OAUTH2_PROXY_CUSTOM_TEMPLATES_DIR: /templates
+      OAUTH2_PROXY_WHITELIST_DOMAINS: auth.${DOMAIN}   # retour après déconnexion de Keycloak
+      OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
+      OAUTH2_PROXY_REVERSE_PROXY: "true"
+      OAUTH2_PROXY_TRUSTED_PROXY_IPS: 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16   # Caddy, sur le réseau Docker
+      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
+      OAUTH2_PROXY_COOKIE_NAME: _console
+      OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET:?OAUTH2_PROXY_COOKIE_SECRET is required}
+      OAUTH2_PROXY_COOKIE_SECURE: ${OAUTH2_PROXY_COOKIE_SECURE:-true}   # false seulement en démo http
+      OAUTH2_PROXY_COOKIE_SAMESITE: lax
+      OAUTH2_PROXY_COOKIE_EXPIRE: 8h
+      OAUTH2_PROXY_COOKIE_REFRESH: 1m   # jeton renouvelé : un administrateur révoqué perd l'accès
+    volumes:
+      - ./oauth2-proxy/templates:/templates:ro
+
+volumes:
+  keycloak_db:
+  console_data:

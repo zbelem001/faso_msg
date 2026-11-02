@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Console d'administration · Messagerie de l'Administration</title>
+<!-- Styles et script dans des fichiers séparés : la politique CSP interdit tout code en ligne. -->
+<link rel="stylesheet" href="/static/console.css">
+<script src="/static/console.js" defer></script>
+</head>
+<body>
+<div class="drapeau" aria-hidden="true"><span></span><span></span></div>
+<header class="entete">
+  <div>
+    <p class="surtitre">Messagerie de l'Administration</p>
+    <h1>Console d'administration</h1>
+  </div>
+  <div class="session"><span id="admin"></span><a id="deconnexion" href="/oauth2/sign_out">Se déconnecter</a></div>
+</header>
+
+<main>
+  <p id="erreur" role="alert" hidden></p>
+  <nav class="onglets" role="tablist">
+    <button role="tab" aria-selected="true" data-onglet="agents">Agents</button>
+    <button role="tab" aria-selected="false" data-onglet="journal">Journal d'audit</button>
+  </nav>
+
+  <section id="agents">
+    <div class="barre">
+      <input type="search" id="recherche" placeholder="Rechercher un agent, un ministère, une fonction…" aria-label="Rechercher un agent">
+      <p id="compteurs"></p>
+      <button type="button" class="principal" id="nouvel-agent">Enrôler un agent</button>
+    </div>
+    <div class="carte">
+      <table>
+        <thead><tr><th>Agent</th><th>Ministère</th><th>Fonction</th><th>Statut</th><th></th></tr></thead>
+        <tbody id="liste-agents"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="journal" hidden>
+    <div class="carte">
+      <table>
+        <thead><tr><th>Date</th><th>Administrateur</th><th>Action</th><th>Agent</th><th>Motif</th><th>Résultat</th><th>Durée</th></tr></thead>
+        <tbody id="liste-journal"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<dialog id="dialogue-revocation" aria-labelledby="d-titre">
+  <form id="formulaire-revocation">
+    <h2 id="d-titre">Révoquer <span id="d-nom"></span></h2>
+    <p class="d-id" id="d-identifiant"></p>
+    <ul class="effets">
+      <li>Son compte d'identité est désactivé : plus aucune connexion possible.</li>
+      <li>Ses sessions sont fermées, sur tous ses appareils.</li>
+      <li>Il ou elle est retiré(e) de tous les salons et ne pourra plus lire les nouveaux messages.</li>
+      <li>L'historique reste disponible pour les autres membres.</li>
+    </ul>
+    <label for="motif">Motif de la révocation</label>
+    <textarea id="motif" required minlength="3" maxlength="200" rows="2"
+              placeholder="Ex. : perte du téléphone, départ du service"></textarea>
+    <div class="actions">
+      <button type="button" class="secondaire" data-fermer>Annuler</button>
+      <button type="submit" class="danger" id="confirmer">Révoquer l'agent</button>
+    </div>
+  </form>
+  <div id="resultat-revocation" hidden>
+    <h2 id="r-titre"></h2>
+    <ol class="etapes" id="r-etapes"></ol>
+    <p class="r-meta" id="r-meta"></p>
+    <div class="actions"><button type="button" class="secondaire" data-fermer>Fermer</button></div>
+  </div>
+</dialog>
+
+<dialog id="dialogue-enrolement" aria-labelledby="e-titre">
+  <form id="formulaire-enrolement">
+    <h2 id="e-titre">Enrôler un agent</h2>
+    <p class="d-id">L'agent reçoit un mot de passe provisoire. À sa première connexion, il choisit son mot de passe et configure son code TOTP.</p>
+    <div class="grille">
+      <div><label for="e-prenom">Prénom</label><input id="e-prenom" required maxlength="100" autocomplete="off"></div>
+      <div><label for="e-nom">Nom</label><input id="e-nom" required maxlength="100" autocomplete="off"></div>
+      <div class="large"><label for="e-identifiant">Identifiant</label>
+        <input id="e-identifiant" required minlength="3" maxlength="64" pattern="[a-z0-9]+([.\-][a-z0-9]+)*"
+               placeholder="prenom.nom" autocomplete="off" aria-describedby="e-aide">
+        <small id="e-aide">Minuscules, chiffres, point et tiret. Identifiant Matrix : <span id="e-mxid"></span></small></div>
+      <div class="large"><label for="e-ministere">Ministère</label><input id="e-ministere" required maxlength="200" autocomplete="off"></div>
+      <div class="large"><label for="e-fonction">Fonction</label><input id="e-fonction" required maxlength="200" autocomplete="off"></div>
+    </div>
+    <p class="erreur-dialogue" id="e-erreur" role="alert" hidden></p>
+    <div class="actions">
+      <button type="button" class="secondaire" data-fermer>Annuler</button>
+      <button type="submit" class="principal" id="e-confirmer">Enrôler l'agent</button>
+    </div>
+  </form>
+  <div id="resultat-enrolement" hidden>
+    <h2 class="succes" id="re-titre"></h2>
+    <p>Identifiant Matrix : <strong id="re-mxid"></strong></p>
+    <p class="d-id">Mot de passe provisoire, à remettre à l'agent en main propre. Il ne sera plus affiché.</p>
+    <p class="mdp"><code id="re-mdp"></code><button type="button" class="secondaire petit" id="re-copier">Copier</button></p>
+    <div class="actions"><button type="button" class="secondaire" data-fermer>Fermer</button></div>
+  </div>
+</dialog>
+</body>
+</html>

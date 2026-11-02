@@ -56,6 +56,17 @@ rc_message:
   per_second: 0.2
   burst_count: 10
 
+# Le mot de passe et le TOTP sont vérifiés par Keycloak (avec sa protection anti-force brute) ;
+# Synapse n'échange que des jetons de connexion à usage unique. La limite par défaut (5 connexions
+# en rafale par adresse IP) bloquerait une démonstration où tous les postes partagent la même adresse.
+rc_login:
+  address:
+    per_second: 1
+    burst_count: 20
+  account:
+    per_second: 1
+    burst_count: 20
+
 push:
   include_content: false
 
@@ -68,8 +79,11 @@ oidc_providers:
     issuer: ${PUBLIC_SCHEME}://auth.${DOMAIN}/realms/administration
     client_id: synapse
     client_secret: ${OIDC_SYNAPSE_SECRET}
-    scopes: ["openid", "profile", "email", "groups"]
-    authorization_endpoint: http://keycloak:8080/realms/administration/protocol/openid-connect/auth
+    # Pas de scope "groups" : Keycloak refuse un scope inconnu (invalid_scope). Le claim groups
+    # est ajouté par le mappeur du client synapse (contrat C1).
+    scopes: ["openid", "profile"]
+    # Seule URL ouverte par le navigateur de l'agent : elle doit être publique.
+    authorization_endpoint: ${PUBLIC_SCHEME}://auth.${DOMAIN}/realms/administration/protocol/openid-connect/auth
     token_endpoint: http://keycloak:8080/realms/administration/protocol/openid-connect/token
     userinfo_endpoint: http://keycloak:8080/realms/administration/protocol/openid-connect/userinfo
     jwks_uri: http://keycloak:8080/realms/administration/protocol/openid-connect/certs

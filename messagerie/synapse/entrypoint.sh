@@ -1,8 +1,9 @@
 #!/bin/sh
 set -eu
 
-if [ ! -f /data/homeserver.yaml ]; then
-    python3 - "$@" <<'PY'
+# Régénérée à chaque démarrage : un changement du .env (ex. SYNAPSE_PASSWORD_LOGIN=false)
+# ou du modèle est pris en compte par un simple redémarrage.
+python3 - "$@" <<'PY'
 import os
 from pathlib import Path
 
@@ -22,7 +23,6 @@ for key, value in values.items():
     template = template.replace("${" + key + "}", value)
 Path("/data/homeserver.yaml").write_text(template)
 PY
-fi
 
 if [ ! -f /data/signing.key ]; then
     python3 -m synapse.app.homeserver \

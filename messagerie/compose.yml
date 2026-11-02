@@ -31,6 +31,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-synapse}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:-synapse}
+      # Synapse appelle Keycloak en HTTP sur le réseau interne Docker (contrat C1), jamais exposé ;
+      # sans cette option, sa bibliothèque OIDC exige HTTPS et la connexion des agents échoue.
+      AUTHLIB_INSECURE_TRANSPORT: "1"
     volumes:
       - synapse_data:/data
       - ./synapse/entrypoint.sh:/usr/local/bin/part-a-entrypoint.sh:ro
